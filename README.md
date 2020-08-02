@@ -26,7 +26,7 @@ sm_throwing_melee_damage_variance 0
 sm_throwing_melee_critical_damage 180
 sm_throwing_melee_critical_chance 0
 sm_throwing_melee_ignore_kevlar 0
-sm_throwing_melee_aimpunch_pitchyaw 0
+sm_throwing_melee_aimpunch_pitch_yaw 0
 sm_throwing_melee_aimpunch_roll 0
 ```
 
@@ -63,8 +63,8 @@ sm_throwing_melee_critical_damage 95
 Screen shake on hit:
 
 ```
-sm_throwing_melee_aimpunch_pitchyaw 100  // Rotates camera by 100 deg
-sm_throwing_melee_aimpunch_roll 50       // Twists camera by 50 deg
+sm_throwing_melee_aimpunch_pitch_yaw 100  // Temporarily rotates camera by 100 deg
+sm_throwing_melee_aimpunch_roll 50        // Temporarily twists camera by 50 deg
 ```
 
 
