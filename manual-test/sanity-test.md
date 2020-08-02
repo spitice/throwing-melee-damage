@@ -1,5 +1,5 @@
 
-# Sanity test by my hand :)
+# Sanity test by my hands :)
 
 PREREQUISITES: SM Plugins are stored in proper directory.
 
@@ -92,8 +92,8 @@ PREREQUISITES: SM Plugins are stored in proper directory.
 - `sm_throwing_melee_test_aimpunch`
   - EXPECTED: your screen should be swung
 - `sm_throwing_melee_aimpunch_pitch_yaw 0`
-- `sm_throwing_melee_test_aimpunch`
-  - EXPECTED: your screen should be rotated only
+- `sm_throwing_melee_test_aimpunch` several times
+  - EXPECTED: both clockwise and counterclockwise should be observed
 - `sm_throwing_melee_aimpunch_pitch_yaw 100`
 - type `!throwing_melee_test_aimpunch` in chat
   - EXPECTED: nothing happens

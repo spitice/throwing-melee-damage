@@ -404,7 +404,7 @@ void ApplyAimpunch( int client ) {
 
     // Roll
     bool isCCW = GetURandomFloat() > 0.5;
-    float roll = isCCW ? 1.0 : 0.0;
+    float roll = isCCW ? 1.0 : -1.0;
 
     float angle[3] = {0.0, 0.0, 0.0};  // (pitch, yaw, roll) in degree
     angle[0] = pitch * magnitudeXY;
