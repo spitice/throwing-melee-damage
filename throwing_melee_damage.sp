@@ -48,14 +48,15 @@ public Plugin myinfo = {
 //------------------------------------------------------------------------------
 #define MAX_EDICTS 2048
 
-#define WEAPONTYPE_KNIFE 0  // Unused
+#define WEAPONTYPE_KNIFE 0  // Unused. Just for reference
 #define WEAPONTYPE_MELEE 16
 
 #define WEAPONID_AXE        75 // == CSWeapon_AXE
 #define WEAPONID_HAMMER     76 // == CSWeapon_HAMMER
 #define WEAPONID_SPANNER    78 // == CSWeapon_SPANNER
 
-#define DMG_THROWING_MELEE DMG_CLUB | DMG_NEVERGIB  // == 4224
+#define DMG_HEADSHOT (1 << 30)  // Unused.
+#define DMG_THROWING_MELEE DMG_CLUB | DMG_NEVERGIB  // 1<<7 | 1<<12 == 4224
 
 char CLSNAME_AXE[]      = "weapon_axe";
 char CLSNAME_HAMMER[]   = "weapon_hammer";
@@ -69,12 +70,13 @@ char CLSNAME_SPANNER[]  = "weapon_spanner";
 //------------------------------------------------------------------------------
 // ConVars
 //------------------------------------------------------------------------------
-ConVar g_cvarDamage = null;
-ConVar g_cvarFFDamage = null;
-ConVar g_cvarSelfDamage = null;
+ConVar g_cvarDamage         = null;
+ConVar g_cvarFFDamage       = null;
+ConVar g_cvarSelfDamage     = null;
 ConVar g_cvarDamageVariance = null;
 ConVar g_cvarCriticalDamage = null;
 ConVar g_cvarCriticalChance = null;
+ConVar g_cvarIgnoreKevlar   = null;
 
 //------------------------------------------------------------------------------
 // Game state
@@ -96,6 +98,7 @@ public void OnPluginStart() {
     g_cvarDamageVariance    = CreateConVar( "sm_throwing_melee_damage_variance", "0", "Amount of damage variance for enemy hits. Actual damage = Base damage + RandomInt(-Variance, Variance)" );
     g_cvarCriticalDamage    = CreateConVar( "sm_throwing_melee_critical_damage", "180", "Amount of critical damage from throwing melee. Only for damages dealt to enemies; FF and self damages never cause critical hits." );
     g_cvarCriticalChance    = CreateConVar( "sm_throwing_melee_critical_chance", "0", "Chance of critical damage [0, 1]. Set 1 to make it always critical for nonsense" );
+    g_cvarIgnoreKevlar      = CreateConVar( "sm_throwing_melee_ignore_kevlar", "0", "If 1, all throwing melee damage penetrate armor.", 0, true, 0.0, true, 1.0 );
 
     // For development:
     // Adds hook for OnTakeDamage after invoking `sm plugins reload this-plugin-name.sp` in the game
@@ -132,8 +135,32 @@ public Action OnItemEquip( Event event, const char[] name, bool dontBroadcast ) 
     int userid = GetEventInt( event, "userid" );
     int entClient = GetClientOfUserId( userid );
 
+    //
     // Get the melee weapon's entindex
-    int entMelee = GetPlayerWeaponSlot( entClient, CS_SLOT_KNIFE );
+    //
+    // NOTE: `GetPlayerWeaponSlot( entClient, CS_SLOT_KNIFE )` won't work if the player has `knifegg`
+    //
+    int entMelee = -1;
+    for ( int i = 0; i < 64; i++ ) {
+        int entWeapon = GetEntPropEnt( entClient, Prop_Send, "m_hMyWeapons", i );
+        if ( entWeapon == -1 ) {
+            // Failed...
+            break;
+        }
+
+        char clsname[256];
+        GetEntityClassname( entWeapon, clsname, sizeof(clsname) );
+        if ( StrEqual( clsname, "weapon_melee" ) ) {
+            // We've found the weapon. Yay!
+            entMelee = entWeapon;
+            break;
+        }
+    }
+
+    if ( entMelee == -1 ) {
+        LogError( "[OnItemEquip] Failed to find the melee weapon from the player's inventory..." );
+        return Plugin_Continue;
+    }
 
     // Determine which melee weapon it actually is
     int defindex = GetEventInt( event, "defindex" );
@@ -143,17 +170,17 @@ public Action OnItemEquip( Event event, const char[] name, bool dontBroadcast ) 
         defindex != WEAPONID_HAMMER &&
         defindex != WEAPONID_SPANNER
     ) {
-        // The weapon is not what we want. It might be a knife or something.
+        // The weapon is not what we want. It might be a knife, fists or something.
         return Plugin_Continue;
     }
 
     // Validation for SAFETY
     if ( !IsValidEdict( entClient ) ) {
-        LogError( "[ThrowMeleeDmg][OnItemEquip] The client id is invalid. Something went wrong..." );
+        LogError( "[OnItemEquip] The client id is invalid. Something went wrong..." );
         return Plugin_Continue;
     }
     if ( !IsValidEdict( entMelee ) ) {
-        LogError( "[ThrowMeleeDmg][OnItemEquip] entindex for the melee weapon is invalid. Something went wrong..." );
+        LogError( "[OnItemEquip] entindex for the melee weapon is invalid. Something went wrong..." );
         return Plugin_Continue;
     }
 
@@ -162,9 +189,11 @@ public Action OnItemEquip( Event event, const char[] name, bool dontBroadcast ) 
     g_entindexToWeaponId[entMelee] = defindex;
 
     // Just logging
+#if DEV
     char weaponClsname[16];
     MeleeWeaponIdToClassname( defindex, weaponClsname );
     LOG( "%s [%d] owned by %N [%d]", weaponClsname, entMelee, entClient, entClient );
+#endif
 
     return Plugin_Continue;
 }
@@ -195,7 +224,7 @@ public Action OnTakeDamage(
     GetEntityClassname( inflictor, inflictorClsname, sizeof(inflictorClsname) );
 
     if ( !StrEqual( inflictorClsname, "weapon_melee" ) ) {
-        // It is not from an melee weapon. Ignore it.
+        // It is not from a throwing melee weapon. Ignore it.
         return Plugin_Continue;
     }
 
@@ -209,7 +238,7 @@ public Action OnTakeDamage(
         return Plugin_Continue;
     }
     if ( !IsValidEdict( thrower ) ) {
-        LogError( "[ThrowMeleeDmg][OnTakeDamage] entindex for the client who threw the melee weapon is invalid. Is he/she still connected?" );
+        LogError( "[OnTakeDamage] entindex for the client who threw the melee weapon is invalid. Is he/she still connected?" );
         return Plugin_Continue;
     }
 
@@ -217,7 +246,9 @@ public Action OnTakeDamage(
     char weaponClsname[16];
     MeleeWeaponIdToClassname( weaponId, weaponClsname );
 
-    LOG( "[ThrowMeleeDmg] Weapon: %s, Victim: %N", weaponClsname, victim );
+    LOG( "Weapon: %s", weaponClsname );
+    LOG( " - Victim: %N (%d)", victim, victim );
+    LOG( " - Attacker: %N (%d)", thrower, thrower );
 
     int teamVictim  = GetClientTeam( victim );
     int teamThrower = GetClientTeam( thrower );
@@ -228,22 +259,21 @@ public Action OnTakeDamage(
 
     // No damage
     if ( isSelfFire ) {
-        LOG( "[ThrowMeleeDmg] SELF FIRE" );
+        LOG( " - (SELF FIRE)" );
         iDamage = g_cvarSelfDamage.IntValue;
 
     } else if ( isFriendlyFire ) {
-        LOG( "[ThrowMeleeDmg] FRIENDLY FIRE" );
+        LOG( " - (FRIENDLY FIRE)" );
         iDamage = g_cvarFFDamage.IntValue;
 
     } else {
-        LOG( "[ThrowMeleeDmg] TO ENEMY" );
         // Base damage
         iDamage = g_cvarDamage.IntValue;
 
         // Is critical hit?
         float fCritChance = g_cvarCriticalChance.FloatValue;
         if ( GetURandomFloat() < fCritChance ) {
-            LOG( "[ThrowMeleeDmg] CRITICAL HIT!" );
+            LOG( " - ** CRITICAL HIT! **" );
             iDamage = g_cvarCriticalDamage.IntValue;
         }
 
@@ -256,14 +286,19 @@ public Action OnTakeDamage(
         }
     }
 
-    LOG( "[ThrowMeleeDmg] Damage = %d", iDamage );
+    LOG( " - Damage = %d", iDamage );
 
     if ( iDamage > 0 ) {
         // point_hurt ironically generates a small amount of damage even if we put 0 damage.
         // To completely discard the damage, just don't call DealDamage function.
 
-        //int newDamageType = DMG_NEVERGIB;  // Unused: Remove DMG_CLUB from the damagetype so the damage ignores armor completely
-        DealDamage( victim, iDamage, thrower, DMG_THROWING_MELEE, weaponClsname, damageForce );
+        int newDamageType = DMG_THROWING_MELEE;  // == damagetype
+        if ( g_cvarIgnoreKevlar.BoolValue ) {
+            // Remove DMG_CLUB from the damagetype so the damage ignores armor completely
+            newDamageType = DMG_NEVERGIB;
+            LOG( " - Ignored kevlar" );
+        }
+        DealDamage( victim, iDamage, thrower, newDamageType, weaponClsname, damageForce );
     }
 
     return Plugin_Handled;
@@ -292,7 +327,6 @@ void DealDamage( int victim, int damage, int attacker, int damagetype, const cha
     Format( strDamageTarget, sizeof(strDamageTarget), "hurtme%d", victim );
 
     // Calculate the position for the point_hurt
-    // TODO: improve this
     float victimPos[3];
     float hurtPos[3];
     GetClientAbsOrigin( victim, victimPos );
@@ -334,5 +368,7 @@ void MeleeWeaponIdToClassname( int weaponId, char out[16] ) {
             strcopy( out, sizeof(out), CLSNAME_HAMMER );
         case WEAPONID_SPANNER:
             strcopy( out, sizeof(out), CLSNAME_SPANNER );
+        default:
+            LogError( "[MeleeWeaponIdToClassname] Invalid weapon id: %d", weaponId );
     }
 }
