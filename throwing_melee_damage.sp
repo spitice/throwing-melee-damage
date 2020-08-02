@@ -70,13 +70,15 @@ char CLSNAME_SPANNER[]  = "weapon_spanner";
 //------------------------------------------------------------------------------
 // ConVars
 //------------------------------------------------------------------------------
-ConVar g_cvarDamage         = null;
-ConVar g_cvarFFDamage       = null;
-ConVar g_cvarSelfDamage     = null;
-ConVar g_cvarDamageVariance = null;
-ConVar g_cvarCriticalDamage = null;
-ConVar g_cvarCriticalChance = null;
-ConVar g_cvarIgnoreKevlar   = null;
+ConVar g_cvarDamage             = null;
+ConVar g_cvarFFDamage           = null;
+ConVar g_cvarSelfDamage         = null;
+ConVar g_cvarDamageVariance     = null;
+ConVar g_cvarCriticalDamage     = null;
+ConVar g_cvarCriticalChance     = null;
+ConVar g_cvarIgnoreKevlar       = null;
+ConVar g_cvarAimpunchPitchYaw   = null;
+ConVar g_cvarAimpunchRoll       = null;
 
 //------------------------------------------------------------------------------
 // Game state
@@ -99,6 +101,10 @@ public void OnPluginStart() {
     g_cvarCriticalDamage    = CreateConVar( "sm_throwing_melee_critical_damage", "180", "Amount of critical damage from throwing melee. Only for damages dealt to enemies; FF and self damages never cause critical hits." );
     g_cvarCriticalChance    = CreateConVar( "sm_throwing_melee_critical_chance", "0", "Chance of critical damage [0, 1]. Set 1 to make it always critical for nonsense" );
     g_cvarIgnoreKevlar      = CreateConVar( "sm_throwing_melee_ignore_kevlar", "0", "If 1, all throwing melee damage penetrate armor.", 0, true, 0.0, true, 1.0 );
+    g_cvarAimpunchPitchYaw  = CreateConVar( "sm_throwing_melee_aimpunch_pitch_yaw", "0", "Amount of screen shake on hit in degrees. Only affects pitch and yaw." );
+    g_cvarAimpunchRoll      = CreateConVar( "sm_throwing_melee_aimpunch_roll", "0", "Amount of screen shake on hit in degrees. Only affects roll." );
+
+    RegConsoleCmd( "sm_throwing_melee_test_aimpunch", Command_TestAimpunch );
 
     // For development:
     // Adds hook for OnTakeDamage after invoking `sm plugins reload this-plugin-name.sp` in the game
@@ -197,6 +203,7 @@ public Action OnItemEquip( Event event, const char[] name, bool dontBroadcast ) 
 
     return Plugin_Continue;
 }
+
 
 public Action OnTakeDamage(
     int victim,
@@ -299,6 +306,24 @@ public Action OnTakeDamage(
             LOG( " - Ignored kevlar" );
         }
         DealDamage( victim, iDamage, thrower, newDamageType, weaponClsname, damageForce );
+        ApplyAimpunch( victim );
+    }
+
+    return Plugin_Handled;
+}
+
+
+public Action Command_TestAimpunch( int client, int args ) {
+
+    if ( client == 0 ) {
+        // Applies to all players
+        client = -1;
+        while ( ( client = FindEntityByClassname( client, "player" ) ) != -1 ) {
+            ApplyAimpunch( client );
+        }
+
+    } else {
+        ApplyAimpunch( client );
     }
 
     return Plugin_Handled;
@@ -353,6 +378,37 @@ void DealDamage( int victim, int damage, int attacker, int damagetype, const cha
     DispatchKeyValue( entHurt, "classname", "point_hurt" );
     DispatchKeyValue( victim, "targetname", "null" );
     RemoveEdict( entHurt );
+}
+
+/**
+ * Applies aimpunch effect on the client.
+ */
+void ApplyAimpunch( int client ) {
+
+    float magnitudeXY = g_cvarAimpunchPitchYaw.FloatValue;
+    float magnitudeZ = g_cvarAimpunchRoll.FloatValue;
+
+    if ( magnitudeXY == 0 && magnitudeZ == 0 ) {
+        return;
+    }
+
+    // Pitch & Yaw
+    float theta = GetURandomFloat() * FLOAT_PI * 2;
+    float pitch = -Cosine( theta );
+    float yaw = -Sine( theta );
+
+    // Roll
+    bool isCCW = GetURandomFloat() > 0.5;
+    float roll = isCCW ? 1.0 : 0.0;
+
+    float angle[3] = {0.0, 0.0, 0.0};  // (pitch, yaw, roll) in degree
+    angle[0] = pitch * magnitudeXY;
+    angle[1] = yaw * magnitudeXY;
+    angle[2] = roll * magnitudeZ;
+
+    // Apply the screen shake
+    SetEntPropVector( client, Prop_Send, "m_aimPunchAngle", angle );
+    SetEntPropVector( client, Prop_Send, "m_aimPunchAngleVel", angle );  // Almost meaningless but it adds subtle shake
 }
 
 /**
