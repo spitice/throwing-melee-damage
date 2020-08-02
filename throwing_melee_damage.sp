@@ -79,6 +79,7 @@ ConVar g_cvarCriticalChance     = null;
 ConVar g_cvarIgnoreKevlar       = null;
 ConVar g_cvarAimpunchPitchYaw   = null;
 ConVar g_cvarAimpunchRoll       = null;
+ConVar g_cvarAllowTestAimpunch  = null;
 
 //------------------------------------------------------------------------------
 // Game state
@@ -103,6 +104,7 @@ public void OnPluginStart() {
     g_cvarIgnoreKevlar      = CreateConVar( "sm_throwing_melee_ignore_kevlar", "0", "If 1, all throwing melee damage penetrate armor.", 0, true, 0.0, true, 1.0 );
     g_cvarAimpunchPitchYaw  = CreateConVar( "sm_throwing_melee_aimpunch_pitch_yaw", "0", "Amount of screen shake on hit in degrees. Only affects pitch and yaw." );
     g_cvarAimpunchRoll      = CreateConVar( "sm_throwing_melee_aimpunch_roll", "0", "Amount of screen shake on hit in degrees. Only affects roll." );
+    g_cvarAllowTestAimpunch = CreateConVar( "sm_throwing_melee_allow_test_aimpunch", "0", "Allows clients to execute test_aimpunch command.", 0, true, 0.0, true, 1.0 );
 
     RegConsoleCmd( "sm_throwing_melee_test_aimpunch", Command_TestAimpunch );
 
@@ -316,6 +318,7 @@ public Action OnTakeDamage(
 public Action Command_TestAimpunch( int client, int args ) {
 
     if ( client == 0 ) {
+        // Server admin can always execute test_aimpunch command.
         // Applies to all players
         client = -1;
         while ( ( client = FindEntityByClassname( client, "player" ) ) != -1 ) {
@@ -323,7 +326,9 @@ public Action Command_TestAimpunch( int client, int args ) {
         }
 
     } else {
-        ApplyAimpunch( client );
+        if ( g_cvarAllowTestAimpunch.BoolValue ) {
+            ApplyAimpunch( client );
+        }
     }
 
     return Plugin_Handled;

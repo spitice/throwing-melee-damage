@@ -28,6 +28,7 @@ sm_throwing_melee_critical_chance 0
 sm_throwing_melee_ignore_kevlar 0
 sm_throwing_melee_aimpunch_pitch_yaw 0
 sm_throwing_melee_aimpunch_roll 0
+sm_throwing_melee_allow_test_aimpunch 0
 ```
 
 Commands:
