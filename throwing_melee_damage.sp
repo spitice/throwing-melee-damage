@@ -27,7 +27,7 @@ public Plugin myinfo = {
     name = "Throwing Melee Damage",
     author = "Spitice (10 shots 0 kills)",
     description = "Modifies damage caused by throwing melee weapons (axe, hammer, and wrench)",
-    version = "1.0",
+    version = "1.0.0",
     url = "https://github.com/spitice"
 };
 
