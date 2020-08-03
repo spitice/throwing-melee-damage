@@ -56,7 +56,7 @@ public Plugin myinfo = {
 #define WEAPONID_SPANNER    78 // == CSWeapon_SPANNER
 
 #define DMG_HEADSHOT (1 << 30)  // Unused.
-#define DMG_THROWING_MELEE DMG_CLUB | DMG_NEVERGIB  // 1<<7 | 1<<12 == 4224
+#define DMG_THROWING_MELEE DMG_CLUB | DMG_NEVERGIB  // (1<<7) | (1<<12) == 4224
 
 char CLSNAME_AXE[]      = "weapon_axe";
 char CLSNAME_HAMMER[]   = "weapon_hammer";
@@ -121,7 +121,7 @@ public void OnPluginStart() {
 
 public void OnClientPutInServer( int client ) {
     // Register a hook for overriding TakeDamage behavior
-	SDKHook( client, SDKHook_OnTakeDamage, OnTakeDamage );
+    SDKHook( client, SDKHook_OnTakeDamage, OnTakeDamage );
 }
 
 //------------------------------------------------------------------------------
@@ -266,7 +266,6 @@ public Action OnTakeDamage(
 
     int iDamage = 0;
 
-    // No damage
     if ( isSelfFire ) {
         LOG( " - (SELF FIRE)" );
         iDamage = g_cvarSelfDamage.IntValue;

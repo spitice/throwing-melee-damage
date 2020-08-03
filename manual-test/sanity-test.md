@@ -11,7 +11,7 @@ PREREQUISITES: SM Plugins are stored in proper directory.
 - `give weapon_axe; give weapon_hammer; give weapon_spanner`
 - Drop your knife > Grab any melee weapon
 
-> NOTE: Nice to have a bind to spawn melee weapon. `bind q "give weapon_axe`
+> NOTE: Nice to have a bind to spawn melee weapon. `bind q "give weapon_axe"`
 
 ## Test Case 1: Self damage
 

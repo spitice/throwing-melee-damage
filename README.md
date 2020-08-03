@@ -93,13 +93,15 @@ For hits dealt to enemies:
 
 ```
 is-critical-hit = RandFloat(0.0, 1.0) < sm_throwing_melee_critical_chance
-damage-variance = RandInt(-sm_throwing_melee_damage_variance, sm_throwing_melee_damage_variance)
+
+variance = sm_throwing_melee_damage_variance
+Δdamage = RandInt(-variance, variance)
 
 if is-critical-hit:
-  damage = sm_throwing_melee_ciritical_damage + damage-variance
+  damage = sm_throwing_melee_ciritical_damage + Δdamage
 
 else:
-  damage = sm_throwing_melee_damage + damage-variance
+  damage = sm_throwing_melee_damage + Δdamage
 ```
 
 > NOTE: All damage values less than 0 will be safely ignored.
