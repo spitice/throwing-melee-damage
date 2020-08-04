@@ -7,6 +7,8 @@ This plugin enables you to tweak damages done by throwing melee weapons. In addi
 ## Prerequisite
 
 - A SM plugin that let you obtain melee weapons.
+  - **RECOMMENDED**: [PickMelee](https://forums.alliedmods.net/showthread.php?p=2627904) by Papero
+  - `mp_drop_knife_enable 1` to drop your knife
 
 
 ## Supported weapons
@@ -21,20 +23,25 @@ This plugin enables you to tweak damages done by throwing melee weapons. In addi
 List of all convars and their default values:
 
 ```
+// FF/Self damage
 sm_throwing_melee_ff_damage 60
 sm_throwing_melee_self_damage 60
 
+// Damage to an enemy
 sm_throwing_melee_damage 60
 sm_throwing_melee_damage_variance 0
 sm_throwing_melee_critical_damage 180
 sm_throwing_melee_critical_chance 0
 
+// Armor penetration
 sm_throwing_melee_ignore_armor 0
 
+// Aimpunch (screen shake effect on hit)
 sm_throwing_melee_aimpunch_pitch_yaw 0
 sm_throwing_melee_aimpunch_roll 0
 sm_throwing_melee_allow_test_aimpunch 0
 
+// Weapon specific parameters
 sm_throwing_melee_damage_mult_axe 1
 sm_throwing_melee_damage_mult_hammer 1
 sm_throwing_melee_damage_mult_spanner 1
@@ -46,10 +53,17 @@ sm_throwing_aimpunch_mult_hammer 1
 sm_throwing_aimpunch_mult_spanner 1
 ```
 
+- `critical_chance`: [0.0, 1.0]. 0 for no critical, 1 for always critical.
+- `aimpunch_pitch_yaw` and `aimpunch_roll`: in degree
+- `critical_chance_override`:
+  - `-1` to inherit the global critical chance (i.e., `sm_throwing_melee_critical_chance`)
+
 
 Commands:
 
 - `sm_throwing_melee_test_aimpunch`
+  - by server: perform screen shake on all players
+  - by client: perform screen shake on their camera. Requires `sm_throwing_melee_allow_test_aimpunch 1`
 
 
 ## Example: ConVar settings
