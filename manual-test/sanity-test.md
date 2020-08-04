@@ -100,3 +100,37 @@ PREREQUISITES: SM Plugins are stored in proper directory.
 - `sm_throwing_melee_allow_test_aimpunch 1`
 - type `!throwing_melee_test_aimpunch` in chat
   - EXPECTED: your screen should be swung
+
+## Test Case 6: Weapon-specific damage
+
+- `mp_restartgame 1`
+- `sm_throwing_melee_self_damage 10; sm_throwing_melee_ff_damage 10; sm_throwing_melee_ignore_armor 1`
+- `sm_throwing_melee_damage_mult_axe 0; sm_throwing_melee_damage_mult_hammer 0.5; sm_throwing_melee_damage_mult_spanner 2`
+- throw any melee to zenith > walk forward > hit to weapon thrown
+  - EXPECTED: The damage should be 10 and should not be varied by the weapon type
+- throw any melee to your teammate
+  - EXPECTED: The damage should be 10 and should not be varied by the weapon type
+- `sm_throwing_melee_damage 10; sm_throwing_melee_critical_chance 0; sm_throwing_melee_damage_variance 0`
+- throw an axe to an enemy
+  - EXPECTED: The damage dealt should be 0
+- throw a hammer to an enemy
+  - EXPECTED: The damage dealt should be 5
+- throw a spanner to an enemy
+  - EXPECTED: the damage dealt should be 20
+- `sm_throwing_melee_critical_chance 0.5; sm_throwing_melee_critical_damage 20`
+- `sm_throwing_melee_damage_mult_axe 1; sm_throwing_melee_critical_chance_override_hammer 1; sm_throwing_melee_critical_chance_override_spanner 0`
+- throw several axes to enemies
+  - EXPECTED: The damage dealt should always be either 10 or 20
+- throw several hammers to enemies
+  - EXPECTED: The damage dealt should always be 10 w/ critical hit
+- throw several spanners to enemies
+  - EXPECTED: The damage dealt should always be 20 w/o critical hit
+
+## Test Case 7: Weapon-specific screen shake
+
+- `sm_throwing_melee_self_damage 0`
+- `sm_throwing_melee_aimpunch_mult_hammer 0; sm_throwing_melee_aimpunch_mult_spanner 3`
+- throw a hammer to yourself:
+  - EXPECTED: Screen shake effect should not be applied
+- throw a spanner to yourself:
+  - EXPECTED: Screen shake effect should be applied and magnified

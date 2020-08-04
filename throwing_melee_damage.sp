@@ -47,6 +47,7 @@ public Plugin myinfo = {
 // Constants
 //------------------------------------------------------------------------------
 #define MAX_EDICTS 2048
+#define MAX_WEAPONS 64  // The array length of m_hMyWeapons
 
 #define WEAPONTYPE_KNIFE 0  // Unused. Just for reference
 #define WEAPONTYPE_MELEE 16
@@ -70,16 +71,30 @@ char CLSNAME_SPANNER[]  = "weapon_spanner";
 //------------------------------------------------------------------------------
 // ConVars
 //------------------------------------------------------------------------------
-ConVar g_cvarDamage             = null;
 ConVar g_cvarFFDamage           = null;
 ConVar g_cvarSelfDamage         = null;
+
+ConVar g_cvarDamage             = null;
 ConVar g_cvarDamageVariance     = null;
 ConVar g_cvarCriticalDamage     = null;
 ConVar g_cvarCriticalChance     = null;
+
 ConVar g_cvarIgnoreArmor        = null;
+
 ConVar g_cvarAimpunchPitchYaw   = null;
 ConVar g_cvarAimpunchRoll       = null;
 ConVar g_cvarAllowTestAimpunch  = null;
+
+ConVar g_cvarDamageMultAxe                  = null;
+ConVar g_cvarDamageMultHammer               = null;
+ConVar g_cvarDamageMultSpanner              = null;
+ConVar g_cvarCriticalChanceOverrideAxe      = null;
+ConVar g_cvarCriticalChanceOverrideHammer   = null;
+ConVar g_cvarCriticalChanceOverrideSpanner  = null;
+ConVar g_cvarAimpunchMultAxe                = null;
+ConVar g_cvarAimpunchMultHammer             = null;
+ConVar g_cvarAimpunchMultSpanner            = null;
+
 
 //------------------------------------------------------------------------------
 // Game state
@@ -95,17 +110,43 @@ public void OnPluginStart() {
 
     HookEvent( "item_equip", OnItemEquip );  // Where we update the information about melee weapons in game
 
-    g_cvarDamage            = CreateConVar( "sm_throwing_melee_damage", "60", "Amount of damage from a throwing melee" );
+    //
+    // ConVars
+    //
+    // FF/Self damage
     g_cvarFFDamage          = CreateConVar( "sm_throwing_melee_ff_damage", "60", "Amount of FF damage from a throwing melee" );
-    g_cvarSelfDamage        = CreateConVar( "sm_throwing_melee_self_damage", "60", "Amount of FF damage from a throwing melee" );
+    g_cvarSelfDamage        = CreateConVar( "sm_throwing_melee_self_damage", "60", "Amount of self damage from a throwing melee" );
+
+    // Damage to an enemy
+    g_cvarDamage            = CreateConVar( "sm_throwing_melee_damage", "60", "Amount of damage from a throwing melee" );
     g_cvarDamageVariance    = CreateConVar( "sm_throwing_melee_damage_variance", "0", "Amount of damage variance for enemy hits. Actual damage = Base damage + RandomInt(-Variance, Variance)" );
     g_cvarCriticalDamage    = CreateConVar( "sm_throwing_melee_critical_damage", "180", "Amount of critical damage from throwing melee. Only for damages dealt to enemies; FF and self damages never cause critical hits." );
     g_cvarCriticalChance    = CreateConVar( "sm_throwing_melee_critical_chance", "0", "Chance of critical damage [0, 1]. Set 1 to make it always critical for nonsense" );
+
+    // Armor penetration
     g_cvarIgnoreArmor       = CreateConVar( "sm_throwing_melee_ignore_armor", "0", "If 1, all throwing melee damages penetrate armor.", 0, true, 0.0, true, 1.0 );
+
+    // Aimpunch (screen shake effect on hit)
     g_cvarAimpunchPitchYaw  = CreateConVar( "sm_throwing_melee_aimpunch_pitch_yaw", "0", "Amount of screen shake on hit in degrees. Only affects pitch and yaw." );
     g_cvarAimpunchRoll      = CreateConVar( "sm_throwing_melee_aimpunch_roll", "0", "Amount of screen shake on hit in degrees. Only affects roll." );
     g_cvarAllowTestAimpunch = CreateConVar( "sm_throwing_melee_allow_test_aimpunch", "0", "Allows clients to execute test_aimpunch command.", 0, true, 0.0, true, 1.0 );
 
+    // Weapon specific parameters
+    g_cvarDamageMultAxe     = CreateConVar( "sm_throwing_melee_damage_mult_axe", "1", "Damage multiplier for axes" );
+    g_cvarDamageMultHammer  = CreateConVar( "sm_throwing_melee_damage_mult_hammer", "1", "Damage multiplier for hammers" );
+    g_cvarDamageMultSpanner = CreateConVar( "sm_throwing_melee_damage_mult_spanner", "1", "Damage multiplier for wrenches" );
+
+    g_cvarCriticalChanceOverrideAxe     = CreateConVar( "sm_throwing_melee_critical_chance_override_axe", "-1", "Critical chance for axes. -1 to inherit sm_throwing_critical_chance" );
+    g_cvarCriticalChanceOverrideHammer  = CreateConVar( "sm_throwing_melee_critical_chance_override_hammer", "-1", "Critical chance for hammers. -1 to inherit sm_throwing_critical_chance" );
+    g_cvarCriticalChanceOverrideSpanner = CreateConVar( "sm_throwing_melee_critical_chance_override_spanner", "-1", "Critical chance for wrenches. -1 to inherit sm_throwing_critical_chance" );
+
+    g_cvarAimpunchMultAxe     = CreateConVar( "sm_throwing_melee_aimpunch_mult_axe", "1", "Aimpunch effect multiplier for axes" );
+    g_cvarAimpunchMultHammer  = CreateConVar( "sm_throwing_melee_aimpunch_mult_hammer", "1", "Aimpunch effect multiplier for hammers" );
+    g_cvarAimpunchMultSpanner = CreateConVar( "sm_throwing_melee_aimpunch_mult_spanner", "1", "Aimpunch effect multiplier for wrenches" );
+
+    //
+    // Commands
+    //
     RegConsoleCmd( "sm_throwing_melee_test_aimpunch", Command_TestAimpunch );
 
     // For development:
@@ -149,7 +190,7 @@ public Action OnItemEquip( Event event, const char[] name, bool dontBroadcast ) 
     // NOTE: `GetPlayerWeaponSlot( entClient, CS_SLOT_KNIFE )` won't work if the player has `knifegg`
     //
     int entMelee = -1;
-    for ( int i = 0; i < 64; i++ ) {
+    for ( int i = 0; i < MAX_WEAPONS; i++ ) {
         int entWeapon = GetEntPropEnt( entClient, Prop_Send, "m_hMyWeapons", i );
         if ( entWeapon == -1 ) {
             // Failed...
@@ -251,49 +292,66 @@ public Action OnTakeDamage(
         return Plugin_Continue;
     }
 
+    // Weapon-specific parameters
     int weaponId = g_entindexToWeaponId[inflictor];
     char weaponClsname[16];
     MeleeWeaponIdToClassname( weaponId, weaponClsname );
 
-    LOG( "Weapon: %s", weaponClsname );
-    LOG( " - Victim: %N (%d)", victim, victim );
-    LOG( " - Attacker: %N (%d)", thrower, thrower );
+    float fDamageMult   = GetDamageMultiplier( weaponId );
+    float fCritChance   = GetCriticalChance( weaponId );
+    float fAimpunchMult = GetAimpunchMultiplier( weaponId );
 
+    // Determine the type of damage
     int teamVictim  = GetClientTeam( victim );
     int teamThrower = GetClientTeam( thrower );
     bool isFriendlyFire = teamVictim == teamThrower;
     bool isSelfFire = victim == thrower;
 
-    int iDamage = 0;
+    LOG( "Weapon: %s", weaponClsname );
+    if ( !isFriendlyFire ) {
+        // Weapon-specific damage parameters will only affects on non FF damages
+        LOG( " - Dmg: x%.2f, Crit chance: %d%%", fDamageMult, RoundToNearest( fCritChance * 100 ) );
+    }
+    LOG( " - Aimpunch: x%.2f", fAimpunchMult );
+    LOG( " - Victim: %N (%d)", victim, victim );
+    LOG( " - Attacker: %N (%d)", thrower, thrower );
+
+    // Calculate the damage
+    float fDamage = 0.0;
 
     if ( isSelfFire ) {
         LOG( " - (SELF FIRE)" );
-        iDamage = g_cvarSelfDamage.IntValue;
+        fDamage = g_cvarSelfDamage.FloatValue;
 
     } else if ( isFriendlyFire ) {
         LOG( " - (FRIENDLY FIRE)" );
-        iDamage = g_cvarFFDamage.IntValue;
+        fDamage = g_cvarFFDamage.FloatValue;
 
     } else {
         // Base damage
-        iDamage = g_cvarDamage.IntValue;
+        fDamage = g_cvarDamage.FloatValue;
 
         // Is critical hit?
-        float fCritChance = g_cvarCriticalChance.FloatValue;
         if ( GetURandomFloat() < fCritChance ) {
             LOG( " - ** CRITICAL HIT! **" );
-            iDamage = g_cvarCriticalDamage.IntValue;
+            fDamage = g_cvarCriticalDamage.FloatValue;
         }
 
         // Randomize the damage
         int iVar = g_cvarDamageVariance.IntValue;
         int iDelta = GetRandomInt( -iVar, iVar );
-        iDamage += iDelta;
-        if ( iDamage < 0 ) {
-            iDamage = 0;
+        fDamage += float(iDelta);
+
+        // Apply weapon-specific damage multiplier
+        fDamage *= fDamageMult;
+
+        // Clamp the damage value
+        if ( fDamage < 0 ) {
+            fDamage = 0.0;
         }
     }
 
+    int iDamage = RoundToNearest( fDamage );
     LOG( " - Damage = %d", iDamage );
 
     if ( iDamage > 0 ) {
@@ -310,7 +368,7 @@ public Action OnTakeDamage(
     }
 
     // Aimpunch effect will be applied regardless of how much damage is done
-    ApplyAimpunch( victim );
+    ApplyAimpunch( victim, fAimpunchMult );
 
     return Plugin_Handled;
 }
@@ -348,7 +406,7 @@ public Action Command_TestAimpunch( int client, int args ) {
  * Shamelessly borrowed the code from `l4d_damage.sp` by AtomicStryker.
  * https://forums.alliedmods.net/showthread.php?t=116668
  * which is based on a code snippet by pimpinjuice
- * http://forums.alliedmods.net/showthread.php?t=111684
+ * https://forums.alliedmods.net/showthread.php?t=111684
  */
 void DealDamage( int victim, int damage, int attacker, int damagetype, const char[] weapon, float damageForce[3] ) {
 
@@ -397,10 +455,10 @@ void DealDamage( int victim, int damage, int attacker, int damagetype, const cha
 /**
  * Applies aimpunch effect on the client.
  */
-void ApplyAimpunch( int client ) {
+void ApplyAimpunch( int client, float multiplier = 1.0 ) {
 
-    float magnitudeXY = g_cvarAimpunchPitchYaw.FloatValue;
-    float magnitudeZ = g_cvarAimpunchRoll.FloatValue;
+    float magnitudeXY = g_cvarAimpunchPitchYaw.FloatValue * multiplier;
+    float magnitudeZ = g_cvarAimpunchRoll.FloatValue * multiplier;
 
     if ( magnitudeXY == 0 && magnitudeZ == 0 ) {
         return;
@@ -441,4 +499,62 @@ void MeleeWeaponIdToClassname( int weaponId, char out[16] ) {
         default:
             LogError( "[MeleeWeaponIdToClassname] Invalid weapon id: %d", weaponId );
     }
+}
+
+/**
+ * Gets the damage multiplier for the weapon.
+ */
+float GetDamageMultiplier( int weaponId ) {
+    switch ( weaponId ) {
+        case WEAPONID_AXE:
+            return g_cvarDamageMultAxe.FloatValue;
+        case WEAPONID_HAMMER:
+            return g_cvarDamageMultHammer.FloatValue;
+        case WEAPONID_SPANNER:
+            return g_cvarDamageMultSpanner.FloatValue;
+    }
+
+    LogError( "[GetDamageMultiplier] Invalid weapon id: %d", weaponId );
+    return 1.0;
+}
+
+/**
+ * Gets the damage multiplier for the weapon.
+ */
+float GetCriticalChance( int weaponId ) {
+    float overriddenChance = -1.0;
+
+    switch ( weaponId ) {
+        case WEAPONID_AXE:
+            overriddenChance = g_cvarCriticalChanceOverrideAxe.FloatValue;
+        case WEAPONID_HAMMER:
+            overriddenChance = g_cvarCriticalChanceOverrideHammer.FloatValue;
+        case WEAPONID_SPANNER:
+            overriddenChance = g_cvarCriticalChanceOverrideSpanner.FloatValue;
+        default:
+            LogError( "[GetCriticalChance] Invalid weapon id: %d", weaponId );
+    }
+
+    if ( overriddenChance < 0.0 ) {
+        // Use the global critical chance
+        return g_cvarCriticalChance.FloatValue;
+    }
+    return overriddenChance;
+}
+
+/**
+ * Gets the multiplier of aimpunch effect for the weapon.
+ */
+float GetAimpunchMultiplier( int weaponId ) {
+    switch ( weaponId ) {
+        case WEAPONID_AXE:
+            return g_cvarAimpunchMultAxe.FloatValue;
+        case WEAPONID_HAMMER:
+            return g_cvarAimpunchMultHammer.FloatValue;
+        case WEAPONID_SPANNER:
+            return g_cvarAimpunchMultSpanner.FloatValue;
+    }
+
+    LogError( "[GetAimpunchMultiplier] Invalid weapon id: %d", weaponId );
+    return 1.0;
 }

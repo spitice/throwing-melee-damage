@@ -1,7 +1,7 @@
 
-# [SourceMod Plugin/CSGO] Throwing Melee Damage
+# [SourceMod/CS:GO] Throwing Melee Damage
 
-This plugin enables you to tweak damages done by throwing weapons. In addition, it can also apply screen shake effect on hit.
+This plugin enables you to tweak damages done by throwing melee weapons. In addition, it can also apply screen shake effect on hit.
 
 
 ## Prerequisite
@@ -18,24 +18,38 @@ This plugin enables you to tweak damages done by throwing weapons. In addition, 
 
 ## ConVars and commands
 
+List of all convars and their default values:
+
 ```
-sm_throwing_melee_damage 60
 sm_throwing_melee_ff_damage 60
 sm_throwing_melee_self_damage 60
+
+sm_throwing_melee_damage 60
 sm_throwing_melee_damage_variance 0
 sm_throwing_melee_critical_damage 180
 sm_throwing_melee_critical_chance 0
+
 sm_throwing_melee_ignore_armor 0
+
 sm_throwing_melee_aimpunch_pitch_yaw 0
 sm_throwing_melee_aimpunch_roll 0
 sm_throwing_melee_allow_test_aimpunch 0
+
+sm_throwing_melee_damage_mult_axe 1
+sm_throwing_melee_damage_mult_hammer 1
+sm_throwing_melee_damage_mult_spanner 1
+sm_throwing_melee_critical_chance_override_axe -1
+sm_throwing_melee_critical_chance_override_hammer -1
+sm_throwing_melee_critical_chance_override_spanner -1
+sm_throwing_aimpunch_mult_axe 1
+sm_throwing_aimpunch_mult_hammer 1
+sm_throwing_aimpunch_mult_spanner 1
 ```
+
 
 Commands:
 
-```
-sm_throwing_melee_test_aimpunch
-```
+- `sm_throwing_melee_test_aimpunch`
 
 
 ## Example: ConVar settings
@@ -92,16 +106,19 @@ ff-damage = sm_throwing_melee_ff_damage * ff_damage_reduction_other
 For hits dealt to enemies:
 
 ```
-is-critical-hit = RandFloat(0.0, 1.0) < sm_throwing_melee_critical_chance
+critical-chance = sm_throwing_melee_critical_chance
+if sm_throwing_melee_critical_chance_override_WEAPONTYPE >= 0.0:
+  critical-chance = sm_throwing_melee_critical_chance_override_WEAPONTYPE
+is-critical-hit = RandFloat(0.0, 1.0) < critical-chance
 
 variance = sm_throwing_melee_damage_variance
 Δdamage = RandInt(-variance, variance)
 
 if is-critical-hit:
-  damage = sm_throwing_melee_ciritical_damage + Δdamage
+  damage = (sm_throwing_melee_ciritical_damage + Δdamage) * sm_throwing_melee_damage_mult_WEAPONTYPE
 
 else:
-  damage = sm_throwing_melee_damage + Δdamage
+  damage = (sm_throwing_melee_damage + Δdamage) * sm_throwing_melee_damage_mult_WEAPONTYPE
 ```
 
 > NOTE: All damage values less than 0 will be safely ignored though, the aimpunch effect would be still applied.
@@ -116,4 +133,4 @@ Besides setting the value for `sm_throwing_melee_ff_damage`, you need to set `ff
 
 ## Acknowledgements
 
-The function to apply arbitrary damage to a client is borrowed from [`l4d_damage.sp` by AtomicStryker](https://forums.alliedmods.net/showthread.php?t=116668), which is based on [a code snippet by pimpinjuice](http://forums.alliedmods.net/showthread.php?t=111684).
+The function to apply arbitrary damage to a client is borrowed from [`l4d_damage.sp` by AtomicStryker](https://forums.alliedmods.net/showthread.php?t=116668), which is based on [a code snippet by pimpinjuice](https://forums.alliedmods.net/showthread.php?t=111684).
