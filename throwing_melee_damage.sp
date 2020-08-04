@@ -347,6 +347,8 @@ public Action Command_TestAimpunch( int client, int args ) {
  *
  * Shamelessly borrowed the code from `l4d_damage.sp` by AtomicStryker.
  * https://forums.alliedmods.net/showthread.php?t=116668
+ * which is based on a code snippet by pimpinjuice
+ * http://forums.alliedmods.net/showthread.php?t=111684
  */
 void DealDamage( int victim, int damage, int attacker, int damagetype, const char[] weapon, float damageForce[3] ) {
 
@@ -356,6 +358,10 @@ void DealDamage( int victim, int damage, int attacker, int damagetype, const cha
     IntToString( damage, strDamage, sizeof(strDamage) );
     IntToString( damagetype, strDamageType, sizeof(strDamageType) );
     Format( strDamageTarget, sizeof(strDamageTarget), "hurtme%d", victim );
+
+    // Backup the victim's targetname
+    char strOrigName[256];
+    GetEntPropString( victim, Prop_Data, "m_iName", strOrigName, sizeof(strOrigName) );
 
     // Calculate the position for the point_hurt
     float victimPos[3];
@@ -378,11 +384,13 @@ void DealDamage( int victim, int damage, int attacker, int damagetype, const cha
     DispatchSpawn( entHurt );
 
     TeleportEntity( entHurt, hurtPos, NULL_VECTOR, NULL_VECTOR );
+
+    // Give damage
     AcceptEntityInput( entHurt, "Hurt", attacker );  // -> OnTakeDamage will be called again
 
     // Teardown
     DispatchKeyValue( entHurt, "classname", "point_hurt" );
-    DispatchKeyValue( victim, "targetname", "null" );
+    DispatchKeyValue( victim, "targetname", strOrigName );
     RemoveEdict( entHurt );
 }
 

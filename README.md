@@ -116,4 +116,4 @@ Besides setting the value for `sm_throwing_melee_ff_damage`, you need to set `ff
 
 ## Acknowledgements
 
-The function to apply arbitrary damage to a client is borrowed from [`l4d_damage.sp` by AtomicStryker](https://forums.alliedmods.net/showthread.php?t=116668).
+The function to apply arbitrary damage to a client is borrowed from [`l4d_damage.sp` by AtomicStryker](https://forums.alliedmods.net/showthread.php?t=116668), which is based on [a code snippet by pimpinjuice](http://forums.alliedmods.net/showthread.php?t=111684).
