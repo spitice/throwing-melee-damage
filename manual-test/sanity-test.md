@@ -15,9 +15,6 @@ PREREQUISITES: SM Plugins are stored in proper directory.
 
 ## Test Case 1: Self damage
 
-- `sm_throwing_melee_self_damage 0`
-  - throw melee to zenith > walk forward > hit to weapon thrown
-  - EXPECTED: you should get no damage
 - `sm_throwing_melee_self_damage 10`
   - throw melee to zenith > walk forward > hit to weapon thrown
   - EXPECTED: you should get 5 damage
@@ -27,6 +24,9 @@ PREREQUISITES: SM Plugins are stored in proper directory.
 - `sm_throwing_melee_aimpunch_pitch_yaw 100; sm_throwing_melee_aimpunch_roll 50`
   - throw melee to zenith > walk forward > hit to weapon thrown
   - EXPECTED: you should get 10 damage and your camera should be shook
+- `sm_throwing_melee_self_damage 0`
+  - throw melee to zenith > walk forward > hit to weapon thrown
+  - EXPECTED: you should get no damage and your camera SHOULD BE shook ([#1](https://github.com/spitice/throwing-melee-damage/issues/1))
 - `sm_throwing_melee_self_damage 1000`
   - throw melee to zenith > walk forward > hit to weapon thrown
   - EXPECTED: you should get fatal damage and death notification should show your suicidal attempt

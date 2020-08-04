@@ -307,8 +307,10 @@ public Action OnTakeDamage(
             LOG( " - Ignored kevlar" );
         }
         DealDamage( victim, iDamage, thrower, newDamageType, weaponClsname, damageForce );
-        ApplyAimpunch( victim );
     }
+
+    // Aimpunch effect will be applied regardless of how much damage is done
+    ApplyAimpunch( victim );
 
     return Plugin_Handled;
 }

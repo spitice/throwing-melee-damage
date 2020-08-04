@@ -104,7 +104,7 @@ else:
   damage = sm_throwing_melee_damage + Δdamage
 ```
 
-> NOTE: All damage values less than 0 will be safely ignored.
+> NOTE: All damage values less than 0 will be safely ignored though, the aimpunch effect would be still applied.
 
 With `sm_throwing_melee_ignore_kevlar 0`, kevlar reduces damage from a throwing melee by **50%**.
 
