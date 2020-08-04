@@ -18,7 +18,7 @@ PREREQUISITES: SM Plugins are stored in proper directory.
 - `sm_throwing_melee_self_damage 10`
   - throw melee to zenith > walk forward > hit to weapon thrown
   - EXPECTED: you should get 5 damage
-- `sm_throwing_melee_ignore_kevlar 1`
+- `sm_throwing_melee_ignore_armor 1`
   - throw melee to zenith > walk forward > hit to weapon thrown
   - EXPECTED: you should get 10 damage
 - `sm_throwing_melee_aimpunch_pitch_yaw 100; sm_throwing_melee_aimpunch_roll 50`
@@ -42,7 +42,7 @@ PREREQUISITES: SM Plugins are stored in proper directory.
 - `ff_damage_reduction_other 1`
   - throw melee to your teammate
   - EXPECTED: your teammate should get 60 damage
-- `sm_throwing_melee_ignore_kevlar 0`
+- `sm_throwing_melee_ignore_armor 0`
   - throw melee to your teammate
   - EXPECTED: your teammate should get 30 damage
 - `sm_throwing_melee_ff_damage 0`

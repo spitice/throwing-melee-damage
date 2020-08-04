@@ -76,7 +76,7 @@ ConVar g_cvarSelfDamage         = null;
 ConVar g_cvarDamageVariance     = null;
 ConVar g_cvarCriticalDamage     = null;
 ConVar g_cvarCriticalChance     = null;
-ConVar g_cvarIgnoreKevlar       = null;
+ConVar g_cvarIgnoreArmor        = null;
 ConVar g_cvarAimpunchPitchYaw   = null;
 ConVar g_cvarAimpunchRoll       = null;
 ConVar g_cvarAllowTestAimpunch  = null;
@@ -101,7 +101,7 @@ public void OnPluginStart() {
     g_cvarDamageVariance    = CreateConVar( "sm_throwing_melee_damage_variance", "0", "Amount of damage variance for enemy hits. Actual damage = Base damage + RandomInt(-Variance, Variance)" );
     g_cvarCriticalDamage    = CreateConVar( "sm_throwing_melee_critical_damage", "180", "Amount of critical damage from throwing melee. Only for damages dealt to enemies; FF and self damages never cause critical hits." );
     g_cvarCriticalChance    = CreateConVar( "sm_throwing_melee_critical_chance", "0", "Chance of critical damage [0, 1]. Set 1 to make it always critical for nonsense" );
-    g_cvarIgnoreKevlar      = CreateConVar( "sm_throwing_melee_ignore_kevlar", "0", "If 1, all throwing melee damage penetrate armor.", 0, true, 0.0, true, 1.0 );
+    g_cvarIgnoreArmor       = CreateConVar( "sm_throwing_melee_ignore_armor", "0", "If 1, all throwing melee damages penetrate armor.", 0, true, 0.0, true, 1.0 );
     g_cvarAimpunchPitchYaw  = CreateConVar( "sm_throwing_melee_aimpunch_pitch_yaw", "0", "Amount of screen shake on hit in degrees. Only affects pitch and yaw." );
     g_cvarAimpunchRoll      = CreateConVar( "sm_throwing_melee_aimpunch_roll", "0", "Amount of screen shake on hit in degrees. Only affects roll." );
     g_cvarAllowTestAimpunch = CreateConVar( "sm_throwing_melee_allow_test_aimpunch", "0", "Allows clients to execute test_aimpunch command.", 0, true, 0.0, true, 1.0 );
@@ -301,10 +301,10 @@ public Action OnTakeDamage(
         // To completely discard the damage, just don't call DealDamage function.
 
         int newDamageType = DMG_THROWING_MELEE;  // == damagetype
-        if ( g_cvarIgnoreKevlar.BoolValue ) {
+        if ( g_cvarIgnoreArmor.BoolValue ) {
             // Remove DMG_CLUB from the damagetype so the damage ignores armor completely
             newDamageType = DMG_NEVERGIB;
-            LOG( " - Ignored kevlar" );
+            LOG( " - Ignored armor" );
         }
         DealDamage( victim, iDamage, thrower, newDamageType, weaponClsname, damageForce );
     }
