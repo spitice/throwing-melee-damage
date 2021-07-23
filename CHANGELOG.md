@@ -1,6 +1,12 @@
 
 # CHANGELOG
 
+## v1.1.1 (2021-07-23)
+
+**Fixes:**
+
+- [#6](https://github.com/spitice/throwing-melee-damage/issues/6) Fixe behaviors caused by owner-less melee weapons
+
 ## v1.1.0 (2020-08-04)
 
 **New features:**
