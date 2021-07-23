@@ -27,7 +27,7 @@ public Plugin myinfo = {
     name = "Throwing Melee Damage",
     author = "Spitice (10 shots 0 kills)",
     description = "Modifies damage caused by throwing melee weapons (axe, hammer, and wrench)",
-    version = "1.1.0",
+    version = "1.1.1",
     url = "https://github.com/spitice"
 };
 
@@ -41,7 +41,17 @@ public Plugin myinfo = {
 #define LOG PrintToChatAll
 #else
 #define LOG LogMessage
-#endif
+#endif // DEV
+
+#if DEV
+// Required to change entity's mass
+//
+// vphysics by asherkin:
+// https://forums.alliedmods.net/showthread.php?t=136350
+#pragma newdecls optional
+#include <vphysics>
+#pragma newdecls required
+#endif // DEV
 
 //------------------------------------------------------------------------------
 // Constants
@@ -63,10 +73,15 @@ char CLSNAME_AXE[]      = "weapon_axe";
 char CLSNAME_HAMMER[]   = "weapon_hammer";
 char CLSNAME_SPANNER[]  = "weapon_spanner";
 
-// We use this to distinguish whom an OnTakeDamage event sent by between
-// the game and the point_hurt entity we artificially create.
-// Set a negative number so IsValidEdict() can bravely return false.
-#define FROM_POINT_HURT -1
+// The placeholder of corresponding owner entindex for melee weapons. The
+// owner's entindex will be this value by default when the melee weapon is not
+// owned by anyone yet AND it somehow hurts a player (e.g., a grenade explosion
+// launches the melee weapon then hits someone)
+#define NOT_OWNED_YET 0
+
+// If the melee weapon's world model is modified by other plugins, we cannot
+// detect weapon type via WorldModelIndex. We use this weaponId in those cases.
+#define WEAPONID_NOT_OWNED_FALLBACK WEAPONID_AXE
 
 //------------------------------------------------------------------------------
 // ConVars
@@ -108,7 +123,8 @@ int g_entindexToWeaponId[MAX_EDICTS];
 //------------------------------------------------------------------------------
 public void OnPluginStart() {
 
-    HookEvent( "item_equip", OnItemEquip );  // Where we update the information about melee weapons in game
+    HookEvent( "round_start", OnRoundStart );   // Resets entindex states every round
+    HookEvent( "item_equip", OnItemEquip );     // Where we update the information about melee weapons in game
 
     //
     // ConVars
@@ -149,15 +165,19 @@ public void OnPluginStart() {
     //
     RegConsoleCmd( "sm_throwing_melee_test_aimpunch", Command_TestAimpunch );
 
-    // For development:
-    // Adds hook for OnTakeDamage after invoking `sm plugins reload this-plugin-name.sp` in the game
-    // Redundant on production build
-#if DEV
-    int client = -1;
-    while ( ( client = FindEntityByClassname( client, "player" ) ) != -1 ) {
-        SDKHook( client, SDKHook_OnTakeDamage, OnTakeDamage );
+    // Initialization and set up entity hooks
+    Initialize();
+
+    int ent = -1;
+    while ( ( ent = FindEntityByClassname( ent, "player" ) ) != -1 ) {
+        SDKHook( ent, SDKHook_OnTakeDamage, OnTakeDamage );
     }
-#endif
+
+#if DEV
+    while ( ( ent = FindEntityByClassname( ent, "weapon_melee" ) ) != -1 ) {
+        SDKHook( ent, SDKHook_OnTakeDamage, OnTakeDamage_MeleeWeapon );
+    }
+#endif // DEV
 }
 
 public void OnClientPutInServer( int client ) {
@@ -165,9 +185,31 @@ public void OnClientPutInServer( int client ) {
     SDKHook( client, SDKHook_OnTakeDamage, OnTakeDamage );
 }
 
+#if DEV
+public void OnEntityCreated( int ent, const char[] classname ) {
+    if ( StrEqual( classname, "weapon_melee" ) ) {
+        SDKHook( ent, SDKHook_OnTakeDamage, OnTakeDamage_MeleeWeapon );
+    }
+}
+#endif // DEV
+
+void Initialize() {
+    for ( int i = 0; i < MAX_EDICTS; i++ ) {
+        g_entindexToOwner[i] = NOT_OWNED_YET;
+        g_entindexToWeaponId[i] = WEAPONID_NOT_OWNED_FALLBACK;
+    }
+}
+
 //------------------------------------------------------------------------------
 // Hooks
 //------------------------------------------------------------------------------
+
+/**
+ * @see https://wiki.alliedmods.net/Counter-Strike:_Global_Offensive_Events#round_start
+ */
+public Action OnRoundStart( Event event, const char[] name, bool dontBroadcast ) {
+    Initialize();
+}
 
 /**
  * @see https://wiki.alliedmods.net/Counter-Strike:_Global_Offensive_Events#item_equip
@@ -177,6 +219,18 @@ public Action OnItemEquip( Event event, const char[] name, bool dontBroadcast ) 
     int weptype = GetEventInt( event, "weptype" );
     if ( weptype != WEAPONTYPE_MELEE ) {
         // We don't care any weapon slots other than melee
+        return Plugin_Continue;
+    }
+
+    // Determine which melee weapon it actually is
+    int defindex = GetEventInt( event, "defindex" );
+
+    if (
+        defindex != WEAPONID_AXE &&
+        defindex != WEAPONID_HAMMER &&
+        defindex != WEAPONID_SPANNER
+    ) {
+        // The weapon is not what we want. It might be a knife, fists or something.
         return Plugin_Continue;
     }
 
@@ -193,8 +247,7 @@ public Action OnItemEquip( Event event, const char[] name, bool dontBroadcast ) 
     for ( int i = 0; i < MAX_WEAPONS; i++ ) {
         int entWeapon = GetEntPropEnt( entClient, Prop_Send, "m_hMyWeapons", i );
         if ( entWeapon == -1 ) {
-            // Failed...
-            break;
+            continue;
         }
 
         char clsname[256];
@@ -208,18 +261,6 @@ public Action OnItemEquip( Event event, const char[] name, bool dontBroadcast ) 
 
     if ( entMelee == -1 ) {
         LogError( "[OnItemEquip] Failed to find the melee weapon from the player's inventory..." );
-        return Plugin_Continue;
-    }
-
-    // Determine which melee weapon it actually is
-    int defindex = GetEventInt( event, "defindex" );
-
-    if (
-        defindex != WEAPONID_AXE &&
-        defindex != WEAPONID_HAMMER &&
-        defindex != WEAPONID_SPANNER
-    ) {
-        // The weapon is not what we want. It might be a knife, fists or something.
         return Plugin_Continue;
     }
 
@@ -258,7 +299,6 @@ public Action OnTakeDamage(
     float damageForce[3],
     float damagePosition[3]
 ) {
-
     // *** DANGER ***
     // Any runtime error occurred in this hook function would break the game! (e.g., players become invincible)
     // Please be careful to review/modify this code section :)
@@ -269,31 +309,36 @@ public Action OnTakeDamage(
         return Plugin_Continue;
     }
 
-    // Let's check the weapon's classname just in case!
+    // Let's check the weapon's classname
     char inflictorClsname[256];
     GetEntityClassname( inflictor, inflictorClsname, sizeof(inflictorClsname) );
-
     if ( !StrEqual( inflictorClsname, "weapon_melee" ) ) {
-        // It is not from a throwing melee weapon. Ignore it.
+        // It is not from a throwing melee weapon.
+        //
+        // This filter also catches damages caused by our point_hurt because
+        // their class name would be either "weapon_axe/hammer/spanner".
         return Plugin_Continue;
     }
 
     // Grab the client who threw the melee weapon
-    int thrower = g_entindexToOwner[inflictor];
+    int thrower  = g_entindexToOwner[inflictor];
+    int weaponId = g_entindexToWeaponId[inflictor];
 
-    if ( thrower == FROM_POINT_HURT ) {
-        // The damage is caused by the point_hurt we have created.
-        // Just ignore it.
-        // NOTE: Perhaps, this type of damage is filtered at `!StrEqual( inflictorClsname, "weapon_melee" )` line?
-        return Plugin_Continue;
-    }
-    if ( !IsValidEdict( thrower ) ) {
-        LogError( "[OnTakeDamage] entindex for the client who threw the melee weapon is invalid. Is he/she still connected?" );
-        return Plugin_Continue;
+    if ( thrower == NOT_OWNED_YET ) {
+        // This melee weapon apparently has never been owned by any players.
+        // Therefore, we don't know which type of melee weapon it is yet.
+        //
+        // Let's assume it is self-infliction.
+        thrower = victim;
+        weaponId = GetMeleeWeaponId( inflictor );
+
+    } else if ( !IsValidEdict( thrower ) || !IsClientInGame( thrower ) ) {
+        // The player who threw the melee has been disconnected.
+        // Let's assume it is self-infliction.
+        thrower = victim;
     }
 
     // Weapon-specific parameters
-    int weaponId = g_entindexToWeaponId[inflictor];
     char weaponClsname[16];
     MeleeWeaponIdToClassname( weaponId, weaponClsname );
 
@@ -374,6 +419,24 @@ public Action OnTakeDamage(
 }
 
 
+#if DEV
+public Action OnTakeDamage_MeleeWeapon(
+    int victim,
+    int& attacker,
+    int& inflictor,
+    float& damage,
+    int& damagetype,
+    int& weapon,
+    float damageForce[3],
+    float damagePosition[3]
+) {
+    // Default = 150
+    Phys_SetMass( victim, 1.0 );
+    return Plugin_Continue;
+}
+#endif // DEV
+
+
 public Action Command_TestAimpunch( int client, int args ) {
 
     if ( client == 0 ) {
@@ -432,7 +495,6 @@ void DealDamage( int victim, int damage, int attacker, int damagetype, const cha
     if ( !entHurt ) {
         return;
     }
-    g_entindexToOwner[entHurt] = FROM_POINT_HURT;  // Invalidate the owner entindex so it won't accidentally use outdated data
 
     DispatchKeyValue( victim, "targetname", strDamageTarget );
     DispatchKeyValue( entHurt, "DamageTarget", strDamageTarget );
@@ -450,6 +512,21 @@ void DealDamage( int victim, int damage, int attacker, int damagetype, const cha
     DispatchKeyValue( entHurt, "classname", "point_hurt" );
     DispatchKeyValue( victim, "targetname", strOrigName );
     RemoveEdict( entHurt );
+}
+
+/**
+ * Determines the melee weapon type from the melee weapon entity.
+ */
+int GetMeleeWeaponId( int ent ) {
+    int entWorldModel = GetEntProp( ent, Prop_Send, "m_iWorldModelIndex" );
+    if ( entWorldModel == PrecacheModel( "models/weapons/w_axe.mdl" ) ) {
+        return WEAPONID_AXE;
+    } else if ( entWorldModel == PrecacheModel( "models/weapons/w_hammer.mdl" ) ) {
+        return WEAPONID_HAMMER;
+    } else if ( entWorldModel == PrecacheModel( "models/weapons/w_spanner.mdl" ) ) {
+        return WEAPONID_SPANNER;
+    }
+    return WEAPONID_NOT_OWNED_FALLBACK;
 }
 
 /**

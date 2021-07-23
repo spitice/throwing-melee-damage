@@ -101,7 +101,20 @@ PREREQUISITES: SM Plugins are stored in proper directory.
 - type `!throwing_melee_test_aimpunch` in chat
   - EXPECTED: your screen should be swung
 
-## Test Case 6: Weapon-specific damage
+## Test Case 6: Weapons not owned by anyone
+
+- `sm_throwing_melee_self_damage 1; sm_throwing_melee_ignore_armor 1`
+- spawn melee weapons as many as you can
+- DO NOT drop your current melee weapon
+- throw a grenade to the other side of the melee weapon pool
+- keep spawn melee weapons
+- take the melee weapons launched by the explosion
+  - EXPECTED: The damage should be calculated as self-infliction damage
+- `sm_throwing_melee_self_damage 1000`
+- repeat the process again
+  - EXPECTED: You should get fatal damage caused by the not-owned weapons
+
+## Test Case 7: Weapon-specific damage
 
 - `mp_restartgame 1`
 - `sm_throwing_melee_self_damage 10; sm_throwing_melee_ff_damage 10; sm_throwing_melee_ignore_armor 1`
@@ -126,7 +139,7 @@ PREREQUISITES: SM Plugins are stored in proper directory.
 - throw several spanners to enemies
   - EXPECTED: The damage dealt should always be 20 w/o critical hit
 
-## Test Case 7: Weapon-specific screen shake
+## Test Case 8: Weapon-specific screen shake
 
 - `sm_throwing_melee_self_damage 0`
 - `sm_throwing_melee_aimpunch_mult_hammer 0; sm_throwing_melee_aimpunch_mult_spanner 3`
