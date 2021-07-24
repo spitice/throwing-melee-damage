@@ -518,12 +518,12 @@ void DealDamage( int victim, int damage, int attacker, int damagetype, const cha
  * Determines the melee weapon type from the melee weapon entity.
  */
 int GetMeleeWeaponId( int ent ) {
-    int entWorldModel = GetEntProp( ent, Prop_Send, "m_iWorldModelIndex" );
-    if ( entWorldModel == PrecacheModel( "models/weapons/w_axe.mdl" ) ) {
+    int worldModelIndex = GetEntProp( ent, Prop_Send, "m_iWorldModelIndex" );
+    if ( worldModelIndex == PrecacheModel( "models/weapons/w_axe.mdl" ) ) {
         return WEAPONID_AXE;
-    } else if ( entWorldModel == PrecacheModel( "models/weapons/w_hammer.mdl" ) ) {
+    } else if ( worldModelIndex == PrecacheModel( "models/weapons/w_hammer.mdl" ) ) {
         return WEAPONID_HAMMER;
-    } else if ( entWorldModel == PrecacheModel( "models/weapons/w_spanner.mdl" ) ) {
+    } else if ( worldModelIndex == PrecacheModel( "models/weapons/w_spanner.mdl" ) ) {
         return WEAPONID_SPANNER;
     }
     return WEAPONID_NOT_OWNED_FALLBACK;
